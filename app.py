@@ -3,24 +3,21 @@ import pandas as pd
 import requests
 
 # ----------------- Config & Title -------------------
-st.set_page_config(page_title="ORATS Skew Screener", layout="wide")
+st.set_page_config(page_title="ORATS Volatility Skew Screener", layout="wide")
 st.title("📈 ORATS Volatility Skew Screener")
 
 st.markdown("""
-Upload your `low_iv_rank_stocks.csv` file. The app will:
-- Use the `ticker` column
-- Fetch vol25, vol50, vol75 from ORATS
-- Calculate:
-    - **Put Skew** = vol75 − vol50  
-    - **Call Skew** = vol25 − vol50  
-    - **Risk Reversal** = vol25 − vol75  
+This app uses `low_iv_rank_stocks.csv` directly from the repo.  
+It fetches `vol25`, `vol50`, `vol75` from ORATS and calculates:
+
+- **Put Skew** = vol75 − vol50  
+- **Call Skew** = vol25 − vol50  
+- **Risk Reversal** = vol25 − vol75
 """)
 
-# ----------------- File Upload -------------------
-uploaded_file = st.file_uploader("Upload `low_iv_rank_stocks.csv`", type=["csv"])
 run_button = st.button("Run Screener")
 
-# ----------------- Load API Key from Streamlit Secrets -------------------
+# ----------------- Load API Key -------------------
 token = st.secrets["orats"]["token"]
 
 # ----------------- Fetch ORATS Data -------------------
@@ -45,10 +42,15 @@ def fetch_orats_data(ticker, token):
         return {"ticker": ticker, "error": str(e)}
 
 # ----------------- Main Logic -------------------
-if run_button and uploaded_file:
-    df_input = pd.read_csv(uploaded_file)
+if run_button:
+    try:
+        df_input = pd.read_csv("low_iv_rank_stocks.csv")
+    except Exception as e:
+        st.error(f"🚫 Could not load low_iv_rank_stocks.csv — {e}")
+        st.stop()
+
     if "ticker" not in df_input.columns:
-        st.error("CSV must contain a `ticker` column.")
+        st.error("CSV must have a `ticker` column.")
     else:
         tickers = df_input["ticker"].dropna().astype(str).str.upper().tolist()
         st.info(f"Fetching ORATS data for {len(tickers)} tickers...")
@@ -56,9 +58,10 @@ if run_button and uploaded_file:
         df = pd.DataFrame(results)
 
         if "error" in df.columns:
-            st.warning("Some tickers failed. Check the error column for details.")
+            st.warning("Some tickers failed. Check the error column.")
             st.dataframe(df)
         else:
             st.dataframe(df.style.format({col: "{:.4f}" for col in df.columns if "vol" in col or "skew" in col}))
             csv = df.to_csv(index=False).encode()
-            st.download_button("📥 Download Skew Results", csv, "orats_skew_output.csv", "text/csv")
+            st.download_button("📥 Download CSV", csv, "orats_skew_results.csv", "text/csv")
+
