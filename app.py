@@ -61,7 +61,18 @@ if run_button:
             st.warning("Some tickers failed. Check the error column.")
             st.dataframe(df)
         else:
+            st.subheader("📊 Full Results")
             st.dataframe(df.style.format({col: "{:.4f}" for col in df.columns if "vol" in col or "skew" in col}))
+
+            # ----------------- Top/Bottom 10 Put Skew -------------------
+            st.subheader("🔼 Top 10 Put Skew Tickers")
+            top_skew = df.nlargest(10, "put_skew")[["ticker", "put_skew"]]
+            st.dataframe(top_skew.style.format({"put_skew": "{:.4f}"}))
+
+            st.subheader("🔽 Bottom 10 Put Skew Tickers")
+            bottom_skew = df.nsmallest(10, "put_skew")[["ticker", "put_skew"]]
+            st.dataframe(bottom_skew.style.format({"put_skew": "{:.4f}"}))
+
+            # ----------------- CSV Export -------------------
             csv = df.to_csv(index=False).encode()
             st.download_button("📥 Download CSV", csv, "orats_skew_results.csv", "text/csv")
-
